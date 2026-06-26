@@ -108,7 +108,7 @@ def statistical_summary(df: pd.DataFrame) -> pd.DataFrame:
     return summary[["mean", "median", "std", "min", "max"]]
 
 ## Duplicate Rows Analysis (count of duplicate rows)
-def duplicate_rows_analysis(df: pd.DataFrame) -> dict[str, float | int]:
+def duplicate_rows_analysis(df: pd.DataFrame) -> dict[str, int | float]:
     """
     Analyze duplicate rows in the dataset.
 
@@ -118,19 +118,21 @@ def duplicate_rows_analysis(df: pd.DataFrame) -> dict[str, float | int]:
     Returns:
         dict: Count of duplicate rows.
     """
-    duplicate_count = int(df.duplicated().sum())
+    total_rows = len(df)
     
-    if len(df) == 0:
+    if total_rows == 0:
         return {
             "duplicate_count": 0,
             "duplicate_percentage": 0
         }
+    duplicate_count = int(df.duplicated().sum())
+
     return {
         "duplicate_count": duplicate_count,
-        "duplicate_percentage": float(round(
-            duplicate_count / len(df) * 100,
+        "duplicate_percentage": round(
+            duplicate_count / total_rows * 100,
             2
-        ))
+        )
     }
 
 ## Sample preview of the dataset (first few rows)

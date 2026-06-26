@@ -3,7 +3,7 @@ DataForge Entry Point
 """
 
 def main():
-    pass
+    print("DataForge Started")
 
 if __name__ == "__main__":
     main()

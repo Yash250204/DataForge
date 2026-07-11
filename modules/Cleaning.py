@@ -15,7 +15,7 @@ def remove_duplicates(df: pd.DataFrame) -> pd.DataFrame:
 # ===Section2: Remove Empty Rows=====
 def remove_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Remove rows with any missing values from the DataFrame.
+    Remove rows where all values are missing.
 
     Args:
         df: Input DataFrame.
@@ -37,7 +37,7 @@ def remove_sparse_columns(df: pd.DataFrame, threshold: float = 0.9) -> pd.DataFr
     Returns:
         DataFrame with sparse columns removed.
     """
-    missing_percentage = df.isnull().mean()
+    missing_percentage = df.replace(r'^\s*$', pd.NA, regex=True).isna().mean()
 
     columns_to_drop = missing_percentage[missing_percentage >= threshold].index
 
@@ -93,7 +93,7 @@ def parse_dates(df: pd.DataFrame, date_columns: list[str]) -> pd.DataFrame:
 
     for col in date_columns:
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce")
+            df[col] = pd.to_datetime(df[col], errors="coerce", format="mixed")
     return df
 
 # ===Section7: Type Conversion===
@@ -112,7 +112,10 @@ def convert_column_types(df: pd.DataFrame, column_types: dict[str, str]) -> pd.D
 
     for col, dtype in column_types.items():
         if col in df.columns:
-            df[col] = df[col].astype(dtype, errors="ignore")
+            try:
+                df[col] = df[col].astype(dtype)
+            except (ValueError, TypeError):
+                pass
     return df
 
     
@@ -125,16 +128,17 @@ def cleaning_summary(df: pd.DataFrame) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame containing:
-        - Column
+        - Column_name
         - Non-Null Count
         - Missing Count
         - Missing Percentage
     """
+    temp_df = df.replace(r'^\s*$', pd.NA, regex=True)  # Replace empty strings with NaN for accurate missing value calculation
     summary = pd.DataFrame({
-        "Column": df.columns,
-        "Non-Null Count": df.notnull().sum(),
-        "Missing Count": df.isnull().sum(),
-        "Missing Percentage": (df.isnull().mean() * 100).round(2)
+        "Column_name": df.columns,
+        "Non-Null Count": temp_df.notnull().sum(),
+        "Missing Count": temp_df.isnull().sum(),
+        "Missing Percentage": (temp_df.isnull().mean() * 100).round(2)
     })
     summary = summary.sort_values(by="Missing Percentage", ascending=False).reset_index(drop=True)
     return summary

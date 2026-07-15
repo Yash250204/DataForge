@@ -28,27 +28,40 @@ def reassess_profiling(df: pd.DataFrame) -> dict:
     }
 
 # ======Re-Quality Assessment========
-def reassess_quality(df: pd.DataFrame) -> dict:
+def reassess_quality(df: pd.DataFrame, date_columns: list[str], 
+                     column_ranges: dict[str, tuple[float, float]]) -> dict:
     """
     Reassess the quality of the dataset after cleaning.
 
     Args:
-        df: Input DataFrame.
+    df: Cleaned DataFrame.
+    date_columns: List of date columns.
+    column_ranges: Dictionary of valid numeric ranges.
 
     Returns:
         dict: A dictionary containing reassessed quality metrics.
     """
 
+    date_results = date_validation(df, date_columns)
+    range_results = range_validation(df, column_ranges)
+    outlier_results = detect_outliers(df) 
+
+    completeness_score = calculate_completeness_score(df)
+    uniqueness_score = calculate_uniqueness_score(df)
+    validity_score = calculate_validity_score(date_results, range_results, outlier_results)
+
+    quality_score = calculate_quality_score(completeness_score, uniqueness_score, validity_score)
+
     return {
         "empty_string_analysis": empty_string_analysis(df),
-        "calculate_completeness_score": calculate_completeness_score(df),
-        "calculate_uniqueness_score": calculate_uniqueness_score(df),
-        "date_validation": date_validation(df),
-        "range_validation": range_validation(df),
-        "detect_constant_columns": detect_constant_columns(df),
-        "detect_outliers": detect_outliers(df),
-        "calculate_validity_score": calculate_validity_score(df),
-        "calculate_quality_score": calculate_quality_score(df)  
+        "completeness_score": completeness_score,
+        "uniqueness_score": uniqueness_score,
+        "date_validation": date_results,
+        "range_validation": range_results,
+        "constant_columns": detect_constant_columns(df),
+        "outlier_detection": outlier_results,
+        "validity_score": validity_score,
+        "quality_score": quality_score,
     }
 
 

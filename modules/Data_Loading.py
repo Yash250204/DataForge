@@ -24,6 +24,13 @@ def validate_identifier(name: str) -> str:
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
         raise ValueError(f"Invalid SQL identifier: {name}")
 
+    # MySQL identifiers (table/column/database names) are capped at 64
+    # characters; catch this here with a clear message instead of letting
+    # it fail later with a cryptic MySQL error.
+
+    if len(name) > 64:
+        raise ValueError(f"Invalid SQL identifier: '{name}' exceeds 64 character limit.")
+
     return name
 
 
@@ -122,6 +129,13 @@ def get_mysql_type(series: pd.Series) -> str:
     """
 
     if is_integer_dtype(series):
+        # Signed INT tops out around 2.147 billion. Large IDs or
+        # millisecond timestamps commonly exceed that, so fall back to
+        # BIGINT rather than silently overflowing/truncating on insert
+
+        max_abs = series.abs().max() if not series.empty else 0
+        if pd.isna(max_abs) or max_abs > 2_147_483_647:
+            return "BIGINT"
         return "INT"
 
     if is_float_dtype(series):
@@ -133,6 +147,14 @@ def get_mysql_type(series: pd.Series) -> str:
     if is_datetime64_any_dtype(series):
         return "DATETIME"
 
+    # Text/object columns: a fixed VARCHAR(255) truncates (or errors,
+    # depending on SQL mode) on any value longer than that, so fall back
+    # to TEXT for columns containing longer strings.
+
+    non_null = series.dropna()
+    max_len = non_null.astype(str).map(len).max() if not non_null.empty else 0
+    if pd.isna(max_len) or max_len > 255:
+        return "TEXT"
     return "VARCHAR(255)"
 
 

@@ -17,9 +17,17 @@ def empty_string_analysis(df: pd.DataFrame) -> pd.DataFrame:
     """
     if df.empty:
         return pd.DataFrame()
+
+    object_df = df.select_dtypes(include="object")
+
+    if object_df.empty:
+        # No text columns at all: apply() over zero columns returns an
+        # empty DataFrame (not a Series), which breaks the DataFrame
+        # constructor below, so short-circuit here instead.
+        return pd.DataFrame()
     
-    empty_string_count = (df.select_dtypes(include="object").apply(
-        lambda col: col.str.strip().eq("").sum()))
+    empty_string_count = object_df.apply(
+        lambda col: col.str.strip().eq("").sum())
     empty_string_percentage = (empty_string_count / len(df) * 100).round(2)
 
     analysis = pd.DataFrame({

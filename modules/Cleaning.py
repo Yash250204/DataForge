@@ -74,9 +74,38 @@ def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with standardized column names.
     """
     df = df.copy()  
-    df.columns = df.columns.str.lower().str.replace(r"\s+", "_", regex=True).str.replace("[^a-zA-Z0-9_]", "", regex=True)
-    return df
+    new_columns = (
+        df.columns.str.lower()
+        .str.replace(r"\s+", "_", regex=True)
+        .str.replace("[^a-zA-Z0-9_]", "", regex=True)
+    )
+    # Columns made up entirely of special characters/whitespace would
+    # otherwise become an empty string, which is worse than a duplicate.
 
+    new_columns = [
+        name if name else f"column_{i}"
+        for i, name in enumerate(new_columns)
+    ]
+
+    # Different original names (e.g. "Age" and "age") can collide after
+    # standardization. Leaving duplicates in place silently corrupts every
+    # downstream module: df["age"] returns a DataFrame instead of a
+    # Series, breaking things like .mean() or .dropna() calls that expect
+    # a single column. De-duplicate by suffixing repeats.
+
+    seen: dict[str, int] = {}
+    deduped_columns = []
+    for name in new_columns:
+        if name in seen:
+            seen[name] += 1
+            deduped_columns.append(f"{name}_{seen[name]}")
+        else:
+            seen[name] = 0
+            deduped_columns.append(name)
+
+    df.columns = deduped_columns
+    return df   
+    
 # ===Section6: Date Parsing====
 def parse_dates(df: pd.DataFrame, date_columns: list[str]) -> pd.DataFrame:
     """

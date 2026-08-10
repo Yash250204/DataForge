@@ -29,7 +29,8 @@ def reassess_profiling(df: pd.DataFrame) -> dict:
 
 # ======Re-Quality Assessment========
 def reassess_quality(df: pd.DataFrame, date_columns: list[str], 
-                     column_ranges: dict[str, tuple[float, float]]) -> dict:
+                     column_ranges: dict[str, tuple[float, float]],
+                     precomputed_date_results: pd.DateFrame | None = None) -> dict:
     """
     Reassess the quality of the dataset after cleaning.
 
@@ -42,7 +43,7 @@ def reassess_quality(df: pd.DataFrame, date_columns: list[str],
         dict: A dictionary containing reassessed quality metrics.
     """
 
-    date_results = date_validation(df, date_columns)
+    date_results = precomputed_date_results if precomputed_date_results is not None else date_validation(df, date_columns)
     range_results = range_validation(df, column_ranges)
     outlier_results = detect_outliers(df) 
 

@@ -13,7 +13,7 @@ def remove_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop_duplicates()
 
 # ===Section2: Remove Empty Rows=====
-def remove_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
+def remove_empty_rows(df: pd.DataFrame, ignore_column: list[str] | None = None) -> pd.DataFrame:
     """
     Remove rows where all values are missing.
 
@@ -23,7 +23,8 @@ def remove_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with empty rows removed.
     """
-    return df.dropna(how="all")
+    check_cols = [c for c in df.columns if c not in (ignore_column or [])]
+    return df[df[check_cols].notna().any(axis=1)]
 
 # ===Section3: Remove columns with more than 90% empty values====
 def remove_sparse_columns(df: pd.DataFrame, threshold: float = 0.9) -> pd.DataFrame:
@@ -56,8 +57,10 @@ def remove_whitespace(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with whitespace removed from string columns.
     """
     df = df.copy()  # Create a copy of the DataFrame to avoid modifying the original
-    str_cols = df.select_dtypes(include=["object"]).columns
-    df[str_cols] = df[str_cols].apply(lambda col: col.str.strip().replace("", pd.NA))
+    str_cols = df.select_dtypes(include=["object", "str"]).columns
+    for col in str_cols:
+        df[col] = df[col].map(lambda x: x.strip() if isinstance(x, str) else x)
+        df[col] = df[col].replace("", pd.NA)
     return df
 
 # ===Section5: column name standardization====

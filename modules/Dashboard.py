@@ -393,7 +393,7 @@ def plot_categorical_counts(df: pd.DataFrame) -> None:
         return
 
     categorical_df = df.select_dtypes(
-        include=["object", "category", "bool"]
+        include=["object", "category", "bool", "str"]
     )
 
     if categorical_df.empty:

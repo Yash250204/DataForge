@@ -19,7 +19,7 @@ from modules.Cleaning import (
     standardize_column_names,
     parse_dates,
 )
-from modules.Quality_Reassessment import reassess_quality
+from modules.Quality_Reassessment import reassess_quality, date_validation
 from modules.Dashboard import dashboard_summary
 
 
@@ -30,6 +30,7 @@ from modules.Dashboard import dashboard_summary
 def init_session_state() -> None:
     defaults = {
         "file_name": None,
+        "file_id": None,
         "raw_df": None,
         "structured_df": None,
         "cleaned_df": None,
@@ -69,10 +70,8 @@ def handle_upload() -> None:
         st.error(message)
         return
 
-    # Only reload (and reset downstream progress) when the file actually
-    # changes, otherwise every unrelated widget interaction elsewhere in
-    # the app would re-trigger a reload and wipe out cleaning progress.
-    if st.session_state["file_name"] != uploaded_file.name:
+
+    if st.session_state["file_id"] != uploaded_file.file_id:
         try:
             df = load_file(uploaded_file)
         except Exception as e:
@@ -85,6 +84,7 @@ def handle_upload() -> None:
 
         st.session_state["raw_df"] = df
         st.session_state["file_name"] = uploaded_file.name
+        st.session_state["file_id"] = uploaded_file.file_id
         reset_pipeline_state()
         st.success(
             f"Loaded '{uploaded_file.name}' — "
@@ -226,12 +226,16 @@ def handle_date_parsing_and_quality() -> None:
     if not submitted:
         return
 
+    # Validate BEFORE the values get coerced/dropped by parsing
+    raw_date_results = date_validation(df, date_columns)
+
     final_df = parse_dates(df, date_columns) if date_columns else df.copy()
 
     quality_results = reassess_quality(
         final_df,
         date_columns=date_columns,
         column_ranges=column_ranges,
+        precomputed_date_results=raw_date_results,
     )
 
     st.session_state["cleaned_df"] = final_df

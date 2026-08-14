@@ -30,7 +30,7 @@ def reassess_profiling(df: pd.DataFrame) -> dict:
 # ======Re-Quality Assessment========
 def reassess_quality(df: pd.DataFrame, date_columns: list[str], 
                      column_ranges: dict[str, tuple[float, float]],
-                     precomputed_date_results: pd.DateFrame | None = None) -> dict:
+                     precomputed_date_results: pd.DataFrame | None = None) -> dict:
     """
     Reassess the quality of the dataset after cleaning.
 

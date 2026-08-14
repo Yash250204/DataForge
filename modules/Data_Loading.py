@@ -18,10 +18,9 @@ def validate_identifier(name: str) -> str:
     - letters
     - numbers
     - underscore
-    - must not start with a number
     """
 
-    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+    if not re.fullmatch(r"[A-Za-z0-9_]+", name):
         raise ValueError(f"Invalid SQL identifier: {name}")
 
     # MySQL identifiers (table/column/database names) are capped at 64
@@ -32,6 +31,28 @@ def validate_identifier(name: str) -> str:
         raise ValueError(f"Invalid SQL identifier: '{name}' exceeds 64 character limit.")
 
     return name
+
+def _quote_identifier(name: str) -> str:
+    """
+    Safely prepare a column name for backtick-quoting.
+
+    Column names come straight from arbitrary, user-uploaded DataFrame
+    headers, so unlike table/database names (validated via
+    validate_identifier's strict allowlist) they aren't restricted to
+    plain alphanumerics -- spaces and symbols are fine once quoted.
+    The one character that isn't safe is a literal backtick, since it
+    can break out of the `col` quoting and inject arbitrary SQL into
+    the surrounding CREATE TABLE / INSERT statement. MySQL's own
+    convention for a literal backtick inside a quoted identifier is to
+    double it, so that's what this does.
+    """
+
+    name = str(name)
+
+    if not name:
+        raise ValueError("Column name cannot be empty.")
+
+    return name.replace("`", "``")
 
 
 # =========================================================
@@ -147,6 +168,14 @@ def get_mysql_type(series: pd.Series) -> str:
     if is_datetime64_any_dtype(series):
         return "DATETIME"
 
+    # A boolean column containing a null (e.g. [True, False, None]) is
+    # stored as object dtype, not native bool, since bool can't hold
+    # nulls. is_bool_dtype() above only matches native bool, so without
+    # this check such a column would fall through to VARCHAR/TEXT below.
+    non_null_values = series.dropna()
+    if not non_null_values.empty and non_null_values.map(lambda x: isinstance(x, bool)).all():
+        return "BOOLEAN"
+
     # Text/object columns: a fixed VARCHAR(255) truncates (or errors,
     # depending on SQL mode) on any value longer than that, so fall back
     # to TEXT for columns containing longer strings.
@@ -174,7 +203,7 @@ def create_table_from_dataframe(connection: mysql.connector.MySQLConnection,
 
     for col in df.columns:
         sql_type = get_mysql_type(df[col])
-        columns.append(f"`{col}` {sql_type}")
+        columns.append(f"`{_quote_identifier(col)}` {sql_type}")
 
     create_sql = f"""
     CREATE TABLE IF NOT EXISTS `{table_name}` (
@@ -222,7 +251,7 @@ def load_data_into_table(connection: mysql.connector.MySQLConnection, df: pd.Dat
             connection.commit()
             create_table_from_dataframe(connection, df, table_name)
 
-        columns = ", ".join([f"`{c}`" for c in df.columns])
+        columns = ", ".join([f"`{_quote_identifier(c)}`" for c in df.columns])
         placeholders = ", ".join(["%s"] * len(df.columns))
 
         insert_sql = f"""

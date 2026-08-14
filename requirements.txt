@@ -1,0 +1,6 @@
+streamlit>=1.61
+pandas>=3.0
+numpy>=1.26
+matplotlib>=3.7
+openpyxl>=3.1
+mysql-connector-python>=8.0

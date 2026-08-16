@@ -261,7 +261,7 @@ def calculate_validity_score(date_results: pd.DataFrame, range_results: pd.DataF
     valid_scores = []
 
     for result in [date_results, range_results, outlier_results]:
-        if not result.empty:
+        if result is not None and not result.empty:
             valid_scores.extend(result["valid_percentage"].tolist())
 
     if not valid_scores:

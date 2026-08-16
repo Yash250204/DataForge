@@ -1,6 +1,7 @@
 # modules/data_loading.py
 
 import re
+import numpy as np  
 import pandas as pd
 import mysql.connector
 from mysql.connector import Error
@@ -53,6 +54,33 @@ def _quote_identifier(name: str) -> str:
         raise ValueError("Column name cannot be empty.")
 
     return name.replace("`", "``")
+
+def _sanitize_value(value):
+    """
+    Convert a single DataFrame cell into something
+    mysql-connector-python can bind as a query parameter.
+
+    Cleaned DataFrames routinely contain missing values (NaN in
+    numeric columns, NaT in datetime columns after parse_dates()
+    coerces bad entries, None/pd.NA in object columns) and numpy/pandas
+    scalar types (np.int64, np.float64, pd.Timestamp) that the
+    connector doesn't know how to format -- confirmed empirically:
+    inserting a row with a plain NaN raises
+    "Failed processing format-parameters; Unknown format code 'd' for
+    object of type 'float'". Without this, load_data_into_table()
+    fails on almost any realistically-cleaned dataset.
+    """
+    if pd.isna(value):
+        return None
+    if isinstance (value, pd.Timestamp):
+        return value.to_pydatetime()
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value)
+    if isinstance(value, np.bool_):
+        return bool(value)
+    return value
 
 
 # =========================================================
@@ -259,7 +287,10 @@ def load_data_into_table(connection: mysql.connector.MySQLConnection, df: pd.Dat
         VALUES ({placeholders})
         """
 
-        rows = list(df.itertuples(index=False, name=None))
+        rows = [
+            tuple(_sanitize_value(v) for v in row)
+            for row in df.itertuples(index=False, name=None)
+        ]
 
         cursor.executemany(insert_sql, rows)
         connection.commit()

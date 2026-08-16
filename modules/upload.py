@@ -61,6 +61,9 @@ def load_file(file: Any) -> pd.DataFrame:
 
     try:
 
+        if hasattr(file, "seek"):  # Check if the file object has a seek method (for Streamlit UploadedFile)
+            file.seek(0) 
+           
         if hasattr(file, "name"):
             extension = Path(file.name).suffix.lower()
         else:

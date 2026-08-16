@@ -24,6 +24,8 @@ def remove_empty_rows(df: pd.DataFrame, ignore_column: list[str] | None = None) 
         DataFrame with empty rows removed.
     """
     check_cols = [c for c in df.columns if c not in (ignore_column or [])]
+    if not check_cols:
+        return df
     return df[df[check_cols].notna().any(axis=1)]
 
 # ===Section3: Remove columns with more than 90% empty values====
@@ -78,7 +80,8 @@ def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()  
     new_columns = (
-        df.columns.str.lower()
+        df.columns.astype(str).str.strip()
+        .str.lower()
         .str.replace(r"\s+", "_", regex=True)
         .str.replace("[^a-zA-Z0-9_]", "", regex=True)
     )
@@ -123,7 +126,7 @@ def parse_dates(df: pd.DataFrame, date_columns: list[str]) -> pd.DataFrame:
     """
     df = df.copy()
 
-    for col in date_columns:
+    for col in (date_columns or []):
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce", format="mixed")
     return df
@@ -142,7 +145,7 @@ def convert_column_types(df: pd.DataFrame, column_types: dict[str, str]) -> pd.D
     """
     df = df.copy()
 
-    for col, dtype in column_types.items():
+    for col, dtype in (column_types or {}).items():
         if col in df.columns:
             try:
                 df[col] = df[col].astype(dtype)

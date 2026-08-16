@@ -21,6 +21,16 @@ from modules.Cleaning import (
 )
 from modules.Quality_Reassessment import reassess_quality, date_validation
 from modules.Dashboard import dashboard_summary
+from modules.Data_Loading import (
+    create_server_connection,
+    create_database,
+    create_database_connection,
+    close_connection,
+    create_table_from_dataframe,
+    load_data_into_table,
+    verify_upload,
+    loading_summary,    
+)
 
 
 # ============================================================
@@ -259,6 +269,95 @@ def handle_dashboard() -> None:
 
     st.divider()
     dashboard_summary(df, quality_score)
+
+# ============================================================
+# step 5: Data Loading
+# ============================================================
+
+def handle_data_loading() -> None:
+    df = st.session_state["cleaned_df"]
+    quality_score = st.session_state["quality_score"]
+
+    if df is None or quality_score is None:
+        return
+
+    st.divider()
+    st.header("5. Export to MySQL Database")
+    st.caption("Load the cleaned dataset into a MySQL database.")
+
+    with st.form("mysql_export_form"):
+        col1, col2 = st.columns(2)
+        host = col1.text_input("Host", value="localhost")
+        port = col2.number_input(
+            "Port", min_value=1, max_value=65535, value=3306, step=1
+        )
+
+        col3, col4 = st.columns(2)
+        user = col3.text_input("Username", value="root")
+        password = col4.text_input("Password", type="password")
+
+        col5, col6 = st.columns(2)
+        database = col5.text_input("Database name")
+        table = col6.text_input("Table name")
+
+        if_exists = st.radio(
+            "If the table already exists",
+            options=["append", "replace"],
+            horizontal=True,
+            help=(
+                "Append adds these rows to the existing table. "
+                "Replace drops the table and recreates it from this dataset."
+            ),
+        )
+
+        submitted = st.form_submit_button("Export to MySQL")
+
+    if not submitted:
+        return
+
+    if not host or not user or not database or not table:
+        st.error("Host, username, database name, and table name are all required.")
+        return
+
+    conn = None
+    try:
+        with st.spinner("Connecting to MySQL server..."):
+            conn = create_server_connection(host, user, password, port=int(port))
+
+        with st.spinner(f"Ensuring database '{database}' exists..."):
+            create_database(conn, database)
+        close_connection(conn)
+
+        with st.spinner(f"Connecting to '{database}'..."):
+            conn = create_database_connection(host, user, password, database, port=int(port))
+
+        if if_exists == "append":
+            # load_data_into_table's append mode expects the table to
+            # already exist; create it first (idempotent -- CREATE TABLE
+            # IF NOT EXISTS) so a first-time export doesn't fail with
+            # "table doesn't exist".
+            with st.spinner(f"Ensuring table '{table}' exists..."):
+                create_table_from_dataframe(conn, df, table)
+
+        with st.spinner(f"Loading {df.shape[0]} rows into '{table}'..."):
+            load_data_into_table(conn, df, table, if_exists=if_exists)
+
+        rows_loaded = verify_upload(conn, table)
+        summary = loading_summary(conn, table)
+
+        st.success(f"Loaded {rows_loaded} rows into `{database}`.`{table}`.")
+        s1, s2, s3 = st.columns(3)
+        s1.metric("Rows Loaded", summary["rows_loaded"])
+        s2.metric("Columns", summary["columns_loaded"])
+        s3.metric("Status", summary["status"])
+
+    except (ConnectionError, RuntimeError, ValueError) as e:
+        st.error(f"Export failed: {e}")
+    except Exception as e:
+        st.error(f"Unexpected error during export: {e}")
+    finally:
+        if conn is not None:
+            close_connection(conn)
 
 
 # ============================================================

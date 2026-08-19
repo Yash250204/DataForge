@@ -1,52 +1,6 @@
 import pandas as pd
-# ===Section1: Duplicate Removal=====
-def remove_duplicates(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Remove duplicate rows from the DataFrame.
 
-    Args:
-        df: Input DataFrame.
-
-    Returns:
-        DataFrame with duplicates removed.
-    """
-    return df.drop_duplicates()
-
-# ===Section2: Remove Empty Rows=====
-def remove_empty_rows(df: pd.DataFrame, ignore_column: list[str] | None = None) -> pd.DataFrame:
-    """
-    Remove rows where all values are missing.
-
-    Args:
-        df: Input DataFrame.
-
-    Returns:
-        DataFrame with empty rows removed.
-    """
-    check_cols = [c for c in df.columns if c not in (ignore_column or [])]
-    if not check_cols:
-        return df
-    return df[df[check_cols].notna().any(axis=1)]
-
-# ===Section3: Remove columns with more than 90% empty values====
-def remove_sparse_columns(df: pd.DataFrame, threshold: float = 0.9) -> pd.DataFrame:
-    """
-    Remove columns with more than a specified threshold of missing values.
-
-    Args:
-        df: Input DataFrame.
-        threshold: Proportion of missing values above which columns will be removed.
-
-    Returns:
-        DataFrame with sparse columns removed.
-    """
-    missing_percentage = df.replace(r'^\s*$', pd.NA, regex=True).isna().mean()
-
-    columns_to_drop = missing_percentage[missing_percentage >= threshold].index
-
-    return df.drop(columns=columns_to_drop)
-
-# ===Section4: whitespace removal from string columns====
+# ===Section1: whitespace removal from string columns====
 def remove_whitespace(df: pd.DataFrame) -> pd.DataFrame:
    
     """
@@ -64,6 +18,54 @@ def remove_whitespace(df: pd.DataFrame) -> pd.DataFrame:
         df[col] = df[col].map(lambda x: x.strip() if isinstance(x, str) else x)
         df[col] = df[col].replace("", pd.NA)
     return df
+
+
+# ===Section2: Duplicate Removal=====
+def remove_duplicates(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove duplicate rows from the DataFrame.
+
+    Args:
+        df: Input DataFrame.
+
+    Returns:
+        DataFrame with duplicates removed.
+    """
+    return df.drop_duplicates()
+
+# ===Section3: Remove Empty Rows=====
+def remove_empty_rows(df: pd.DataFrame, ignore_column: list[str] | None = None) -> pd.DataFrame:
+    """
+    Remove rows where all values are missing.
+
+    Args:
+        df: Input DataFrame.
+
+    Returns:
+        DataFrame with empty rows removed.
+    """
+    check_cols = [c for c in df.columns if c not in (ignore_column or [])]
+    if not check_cols:
+        return df
+    return df[df[check_cols].notna().any(axis=1)]
+
+# ===Section4: Remove columns with more than 90% empty values====
+def remove_sparse_columns(df: pd.DataFrame, threshold: float = 0.9) -> pd.DataFrame:
+    """
+    Remove columns with more than a specified threshold of missing values.
+
+    Args:
+        df: Input DataFrame.
+        threshold: Proportion of missing values above which columns will be removed.
+
+    Returns:
+        DataFrame with sparse columns removed.
+    """
+    missing_percentage = df.replace(r'^\s*$', pd.NA, regex=True).isna().mean()
+
+    columns_to_drop = missing_percentage[missing_percentage >= threshold].index
+
+    return df.drop(columns=columns_to_drop)
 
 # ===Section5: column name standardization====
 def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
@@ -100,14 +102,15 @@ def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     # a single column. De-duplicate by suffixing repeats.
 
     seen: dict[str, int] = {}
+    final_names: set[str] = set()
     deduped_columns = []
     for name in new_columns:
-        if name in seen:
-            seen[name] += 1
-            deduped_columns.append(f"{name}_{seen[name]}")
-        else:
-            seen[name] = 0
-            deduped_columns.append(name)
+        candidate = name
+        while candidate in final_names:
+            seen[name] = seen.get(name, 0) + 1
+            candidate = f"{name}_{seen[name]}"
+        final_names.add(candidate)
+        deduped_columns.append(candidate)
 
     df.columns = deduped_columns
     return df   

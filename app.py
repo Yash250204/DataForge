@@ -375,6 +375,7 @@ def main() -> None:
     handle_structural_cleaning()
     handle_date_parsing_and_quality()
     handle_dashboard()
+    handle_data_loading()
 
 
 if __name__ == "__main__":

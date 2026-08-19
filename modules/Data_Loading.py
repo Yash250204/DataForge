@@ -98,6 +98,7 @@ def create_server_connection(host_name: str, user_name: str, user_password: str,
             user=user_name,
             password=user_password,
             port=port,
+            connection_timeout=10  # secoonds
         )
 
     except Error as e:
@@ -147,6 +148,7 @@ def create_database_connection(host_name: str, user_name: str, user_password: st
             password=user_password,
             database=db_name,
             port=port,
+            connection_timeout=10  # seconds
         )
 
     except Error as e:
@@ -226,6 +228,8 @@ def create_table_from_dataframe(connection: mysql.connector.MySQLConnection,
     """
 
     table_name = validate_identifier(table_name)
+    if df.shape[1] == 0:
+        raise ValueError(f"Cannot create table '{table_name}': DataFrame has no columns.")
 
     columns = []
 

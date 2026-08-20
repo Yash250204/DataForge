@@ -142,6 +142,10 @@ def handle_structural_cleaning() -> None:
     with st.form("structural_cleaning_form"):
         st.caption("Choose which cleaning steps to apply.")
 
+        do_remove_whitespace = st.checkbox(
+            "Trim whitespace from text columns", value=True
+        )
+
         do_remove_duplicates = st.checkbox("Remove duplicate rows", value=True)
         do_remove_empty_rows = st.checkbox("Remove fully empty rows", value=True)
 
@@ -157,9 +161,7 @@ def handle_structural_cleaning() -> None:
             disabled=not do_remove_sparse,
         )
 
-        do_remove_whitespace = st.checkbox(
-            "Trim whitespace from text columns", value=True
-        )
+        
         do_standardize_names = st.checkbox(
             "Standardize column names (lowercase, underscores)", value=True
         )
